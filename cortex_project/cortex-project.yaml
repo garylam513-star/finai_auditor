@@ -1,0 +1,7 @@
+version: 1
+artifacts:
+  - path: GLOBAL_FINAI_ANALYTICS.sv.yaml
+    type: semantic_view
+    targets:
+      default:
+        object: FINAI_AUDIT_DB.PUBLIC.GLOBAL_FINAI_ANALYTICS

@@ -1,0 +1,88 @@
+name: GLOBAL_FINAI_ANALYTICS
+description: Unified financial audit analytics view combining internal bank ledger
+  transactions with external TraderMade FX exchange rates. Supports multi-currency
+  normalization to USD, velocity structuring detection (Section 301), and NSF liquidity
+  stress analysis (Section 302).
+tables:
+  - name: BANK_LEDGER
+    base_table:
+      database: FINAI_AUDIT_DB
+      schema: PUBLIC
+      table: BANK_LEDGER
+    dimensions:
+      - name: TX_ID
+        expr: TX_ID
+        data_type: VARCHAR
+      - name: ACCOUNT_ID
+        expr: ACCOUNT_ID
+        data_type: VARCHAR
+      - name: AMOUNT
+        expr: AMOUNT
+        data_type: NUMBER
+      - name: CURRENCY
+        expr: CURRENCY
+        data_type: VARCHAR
+      - name: DIRECTION
+        expr: DIRECTION
+        data_type: VARCHAR
+      - name: MERCHANT
+        expr: MERCHANT
+        data_type: VARCHAR
+      - name: STATUS
+        expr: STATUS
+        data_type: VARCHAR
+    time_dimensions:
+      - name: TX_TIMESTAMP
+        expr: TX_TIMESTAMP
+        data_type: TIMESTAMP_NTZ
+  - name: TICK_DATA_SAMPLE
+    description: Data provides tick level information for 6 currency pairs.
+    base_table:
+      database: CURRENCY_EXCHANGE_RATES
+      schema: PUBLIC
+      table: TICK_DATA_SAMPLE
+    dimensions:
+      - name: INST
+        description: symbol
+        expr: INST
+        data_type: VARCHAR
+    time_dimensions:
+      - name: TIME
+        description: timestamp
+        expr: TIME
+        data_type: TIMESTAMP_NTZ
+    facts:
+      - name: BID
+        description: bid rate
+        expr: BID
+        data_type: NUMBER
+      - name: ASK
+        description: ask rate
+        expr: ASK
+        data_type: NUMBER
+verified_queries:
+  - name: 0;1
+    question: What are the non-USD transactions with their USD-normalized amounts
+      using the latest exchange rates?
+    sql: SELECT b.TX_ID, b.ACCOUNT_ID, b.TX_TIMESTAMP, b.AMOUNT, b.CURRENCY, b.DIRECTION,
+      b.MERCHANT, b.STATUS, fx.BID AS FX_BID, fx.ASK AS FX_ASK, b.AMOUNT * fx.BID
+      AS AMOUNT_USD FROM bank_ledger AS b LEFT JOIN tick_data_sample AS fx ON fx.INST
+      = b.CURRENCY || 'USD' AND fx.TIME = (SELECT MAX(TIME) FROM tick_data_sample
+      WHERE INST = b.CURRENCY || 'USD' AND TIME <= b.TX_TIMESTAMP) WHERE b.CURRENCY
+      <> 'USD'
+    verified_at: 1791093817
+    verified_by: Semantic Model Generator
+  - name: 1;1
+    question: Which accounts have more than 2 deposits in the last 24 hours?
+    sql: SELECT ACCOUNT_ID, COUNT(*) AS DEPOSIT_COUNT, SUM(AMOUNT) AS TOTAL_DEPOSITS
+      FROM bank_ledger WHERE DIRECTION = 'IN' AND TX_TIMESTAMP >= DATEADD(HOUR, -24,
+      CURRENT_TIMESTAMP()) GROUP BY ACCOUNT_ID HAVING COUNT(*) > 2
+    verified_at: 1791093817
+    verified_by: Semantic Model Generator
+  - name: 2;1
+    question: What are all the failed outbound transactions that involve insufficient
+      funds or overdraft situations?
+    sql: SELECT * FROM bank_ledger WHERE DIRECTION = 'OUT' AND STATUS = 'FAILED' AND
+      MERCHANT LIKE '%NSF%' OR MERCHANT LIKE '%OVERDRAFT%'
+    verified_at: 1791093817
+    verified_by: Semantic Model Generator

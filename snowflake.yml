@@ -1,0 +1,8 @@
+definition_version: 1
+
+streamlit:
+  name: finai_auditor_dashboard
+  stage: finai_audit_stage
+  query_warehouse: COMPUTE_WH
+  main_file: app.py
+  title: "FinAI Auditor Compliance Hub"
