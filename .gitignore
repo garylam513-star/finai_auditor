@@ -3,3 +3,9 @@ venv/
 __pycache__/
 data/*.csv
 data/*.txt
+.snowflake/
+
+# Block all editor swap recovery files
+*.swp
+*.swo
+*.swn
